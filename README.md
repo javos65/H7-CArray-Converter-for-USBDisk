@@ -1,5 +1,5 @@
 # C-array converter for image files an Fonts
-![logo](/images/explosion.png?raw=true)
+![logo](/images/Iexplode.png?raw=true)
 ## A handy program tool for generating C-array for graphics - images and / or fonts
 ____
 
@@ -19,7 +19,7 @@ Best online C-array programs are as folllows:
 +
 Still some formats are hard to get like ARGB4444, ARGB1555 or the nibble-swopped A4 for fonts.
 
-![logo](/images/laser.png?raw=true)
+![logo](/images/Laser.png?raw=true)
 
 ### Wiring
 
