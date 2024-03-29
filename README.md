@@ -1,4 +1,4 @@
-# C-array converter for image files an Fonts
+## C-array converter for images and fonts on Arduino USB-Drive
 ![logo](/images/Iexplode.png?raw=true)
 ## A handy program tool for generating C-array for graphics - images and / or fonts
 ____
@@ -18,6 +18,7 @@ Best online C-array programs are as folllows:
 ### [C-Array converter for fonts - lvgl](https://lvgl.io/tools/font_conv_v5_3)
 
 Still some formats are hard to get like ARGB4444, ARGB1555 or the nibble-swopped A4 for fonts.
+This tool runs on the Portenta H7 in USB-drive mode. it reads your c-array from Code or your pgn files from disk, and creates a C-array file on the drive.
 
 ![logo](/images/Laser.png?raw=true)
 
