@@ -6,28 +6,31 @@
 *----------------
 * |	This version:   V2.0
 * | Date        :   2024-03-16
-* | 
+* | https://github.com/javos65/H7-CArray-Converter-for-USBDisk
 *
-* Graphic screen Data
+* Graphic screen Data structures
 *
 ******************************************************************************/
 #include "Screen.h"
 
 // Image structure used in code to convert PNG's
-h7image imageC = {
- (void *) invader1_1, ENEMYSX, ENEMYSY,            
+h7image imageCONV = {
+ (void *) NULL, 0, 0,            
 DMA2D_INPUT_ARGB8888, 32,   /// Alpha modes : DMA2D_INPUT_ARGB1555 , DMA2D_INPUT_ARGB4444 ,DMA2D_INPUT_ARGB8888 // Fixed color modes :  DMA2D_INPUT_RGB565
-"image11\0",
+0,0,
+"image1\0",
 "image1_1\0",     // for conversion  - array name needs to be exact if you like to reuse
 "IMGX\0",        // for conversion
 "IMGY\0"         // for conversion
 };
 
 
+
 // 2 examples of Image streucture, used for c-array conversion
 h7image invader11 = {
  (void *) invader1_1, ENEMYSX, ENEMYSY,            
 DMA2D_INPUT_ARGB8888, 32,   /// Alpha modes : DMA2D_INPUT_ARGB1555 , DMA2D_INPUT_ARGB4444 ,DMA2D_INPUT_ARGB8888 // Fixed color modes :  DMA2D_INPUT_RGB565
+0,0,
 "invader11\0",
 "invader1_1\0",     // for conversion  - array name needs to be exact if you like to reuse
 "ENEMYSX\0",        // for conversion
@@ -37,6 +40,7 @@ DMA2D_INPUT_ARGB8888, 32,   /// Alpha modes : DMA2D_INPUT_ARGB1555 , DMA2D_INPUT
 h7image invader12 = {
  (void *) invader1_2, ENEMYSX, ENEMYSY,            
 DMA2D_INPUT_ARGB8888, 32,   /// Alpha modes : DMA2D_INPUT_ARGB1555 , DMA2D_INPUT_ARGB4444 ,DMA2D_INPUT_ARGB8888 // Fixed color modes :  DMA2D_INPUT_RGB565
+0,0,
 "invader12\0",
 "invader1_2\0",     // for conversion  - array name needs to be exact if you like to reuse
 "ENEMYSX\0",        // for conversion

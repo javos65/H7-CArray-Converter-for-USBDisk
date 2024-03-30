@@ -6,7 +6,7 @@
 *----------------
 * |	This version:   V2.0
 * | Date        :   2024-03-16
-* | 
+* | https://github.com/javos65/H7-CArray-Converter-for-USBDisk
 *
 * Graphic screen Data
 *
@@ -24,20 +24,22 @@ typedef struct {
   uint16_t height;              /// height
   uint32_t colormode;           /// Alpha modes : DMA2D_INPUT_ARGB1555 , DMA2D_INPUT_ARGB4444 ,DMA2D_INPUT_ARGB8888 // Fixed color modes :  DMA2D_INPUT_RGB565
   uint8_t bbp;                  /// bits per pixel => /8 bytes per pixel
+  uint16_t xpos;
+  uint16_t ypos;
   char name[24];
   char namea[24];   // array name in text
   char namesx[16];
   char namesy[16];
 } h7image;
 
-extern h7image imageC;
+extern h7image imageCONV; // Global Used structure
 //
-// SCREEN and GRAPHICS definitions for Game
+// SCREEN and GRAPHICS definitions 
 //
 //
 //
 
-
+// RGB565 colors
 #define CLEAR     0x0005
 #define BLACK     0x0000
 #define BLUE      0x001F
@@ -50,8 +52,6 @@ extern h7image imageC;
 #define YELLOW    0xFFE0
 #define WHITE     0xFFFF
 #define ORANGE    0xfd20
-
-
 
 #define ENEMYSX  36
 #define ENEMYSY   30
@@ -72,15 +72,15 @@ extern h7image imageC;
 #define RAYX 1
 
 
-// define invader images in struture for test
+// define invader images in structure for test of C-array conversion
 extern h7image invader11;
 extern h7image invader12;
-extern h7image invader21;
-extern h7image invader22;
-extern h7image invader31;
-extern h7image invader32;
-extern h7image invader41;
-extern h7image invader42;
+//extern h7image invader21;
+//extern h7image invader22;
+//extern h7image invader31;
+//extern h7image invader32;
+//extern h7image invader41;
+//extern h7image invader42;
 
 
 extern const uint16_t shipcount[MINIY][MINIX]; // RGB565

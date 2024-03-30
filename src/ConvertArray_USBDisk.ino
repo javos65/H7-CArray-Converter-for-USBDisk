@@ -8,13 +8,17 @@
 
 Used to create a C-Array format converter:
 Use your C-array in .h include file, convert and write to USB MAss Storage to read it back on your system for re-use
+OR .. drop your png files on the usb drive and reset the board :)
 
-Function 1: A4 Font format converter : Swop nibbles in the byte-wise data [7:4] and [3:0]
-Function 2: C-array converter : Reduces ARGB8888 (32 bit) to ARGB15555 (16 bit) - 1 Alpha bit for transparancy blending or other formats
-Function 3: read PNG files and convert to C-array
-Function 4 : Convert all png files on the USB drive
+Function 1: Convert all png files on the USB drive
+Function 2: A4 Font format converter : Swop nibbles in the byte-wise data [7:4] and [3:0]
+Function 3: C-array converter : Reduces ARGB8888 (32 bit) to ARGB15555 (16 bit) - 1 Alpha bit for transparancy blending or other formats
+Function 4: read PNG files and convert to C-array by filename
 
 Functions required for proper use of the STM32 ChromArt DMA2D functions, and online converters dont support these formats very well
+Use the Portenta H7 USB Massstorage example to setup your drive properly using partition for Wifi and ota (standard setup)
+
+https://github.com/javos65/H7-CArray-Converter-for-USBDisk
 
 */
 
@@ -23,11 +27,12 @@ Functions required for proper use of the STM32 ChromArt DMA2D functions, and onl
 #include "MBRBlockDevice.h"
 #include "FATFileSystem.h"
 #include <PNGdec.h>
-#include "lvgl_A4.h"
-#include "screen.h"
-#include "SDRAM.h"
+#include "lvgl_A4.h" // font arrays and structures
+#include "screen.h"  // image array and structures
+#include "SDRAM.h"   // needed fro large png files
 
-
+#define DRAMMAXX 480
+#define DRAMMAXY 320
 
 // FOR USB READABLE  DISK
 static QSPIFBlockDevice root;
@@ -40,6 +45,7 @@ static mbed::FATFileSystem ota("ota");
 // FOR PNG DECODER
 PNG png;
 uint32_t *RAWIMAGE;
+uint8_t pngcounter = 0;
 REDIRECT_STDOUT_TO(Serial3)     // JV Console DEBUG for stdio info from Doom library - need to initialise Serial3 in setup()
 
 
@@ -105,7 +111,7 @@ void setup() {
   Serial3.begin(38400);         // JV needed for debug interface can 
   delay(3000);
   SDRAM.begin();
-  RAWIMAGE= (uint32_t*)ea_malloc(480*320*4);  // Allocate Canvas using 480*200 pixels max
+  RAWIMAGE= (uint32_t*)ea_malloc(DRAMMAXX*DRAMMAXY*4);  // Allocate Canvas using 480*200 pixels max
   Serial.println(" * Starting");
   MassStorage.begin();
     //Serial.println("Content of WiFi partition:");
@@ -115,7 +121,11 @@ void setup() {
 char myFileName[] = "ota/info.txt"; 
 FILE *myFile = fopen(myFileName, "w");
 fprintf(myFile,"Test file, to see how cool this is \r\n");
-fprintf(myFile,"Conversion tool for A4 font format conversion - Nibble swap or image conversion color modes\r\n");
+fprintf(myFile,"Function 1: Convert all png files on the USB drive\r\n");
+fprintf(myFile,"Function 2: A4 Font format converter : Swop nibbles in the byte-wise data [7:4] and [3:0]\r\n");
+fprintf(myFile,"Function 3: C-array converter : ie Reduces ARGB8888 (32 bit) to ARGB15555 (16 bit) - incl Alpha\r\n");
+fprintf(myFile,"Function 4: read PNG files and convert to C-array by filename\r\n\r\n");
+fprintf(myFile,"https://github.com/javos65/H7-CArray-Converter-for-USBDisk\r\n");
 fclose(myFile);
   ota.unmount();delay(1000);
   ota.mount(&ota_data);
@@ -137,16 +147,20 @@ void printDirectory(char* name) {
 
 
 
+
 void loop() {
   ConvertAllPNG(DMA2D_INPUT_ARGB4444);
   //ConvertPNG("invader4_1.png",DMA2D_INPUT_ARGB4444); // convert png file to 4444
   //Convert(invader12,false,DMA2D_INPUT_ARGB4444);     // convert image array to 4444
   //Convert(invader11,false,DMA2D_INPUT_ARGB1555);     // convert image array to 1555
-  //ConvertA4_A4(VantaFAT24p);        // convert fontfile
+  //ConvertA4_A4(VantaFAT24p);                         // convert fontfile A4 nibble swop
   Serial.println("Halted");
   while(1);
 
 }
+
+
+
 
 
 
@@ -194,7 +208,7 @@ for (c=myfont.first;c<=myfont.last;++c){
 
 
 
-// Wrapper function for all single array conversions
+// Wrapper function for all single array conversions incl file headers
 uint8_t Convert(h7image image, bool swaprb,uint32_t colormode){
 if ( (colormode!=DMA2D_INPUT_ARGB1555) && (colormode!=DMA2D_INPUT_ARGB4444) && (colormode!= DMA2D_INPUT_RGB565) )  // DMA2D_INPUT_ARGB1555 , DMA2D_INPUT_ARGB4444 ,DMA2D_INPUT_ARGB8888 // Fixed color modes :  DMA2D_INPUT_RGB565
   { return(0); }
@@ -204,12 +218,13 @@ else   {
   FILE *CFile = fopen(CFileName, "w");
   fprintf(CFile,"// C-array IMAGE Converter by JV\n"); 
   fprintf(CFile,"// Required for STM32 ChromArt DMA2D support \n");
+  fprintf(CFile,"https://github.com/javos65/H7-CArray-Converter-for-USBDisk\n\n");
   fprintf(CFile,"// Red-Blue swop used : %i  \n",swaprb); 
   switch (colormode){
       case DMA2D_INPUT_ARGB1555 : Convert1555(image, swaprb, CFile) ; break;
       case DMA2D_INPUT_ARGB4444 : Convert4444(image, swaprb, CFile) ; break;
       case DMA2D_INPUT_ARGB8888 : Convert8888(image, swaprb, CFile) ; break;      
-      case DMA2D_INPUT_RGB565 : Convert565(image, swaprb, CFile) ; break;
+      case DMA2D_INPUT_RGB565   : Convert565(image, swaprb, CFile) ; break;
       default : break;
   }
   fclose(CFile);
@@ -231,11 +246,11 @@ fprintf(CFile,"#define %s %i\n",image.namesy, image.height);
 fprintf(CFile,"#define %s %i\n\n",image.namesx, image.width); 
 fprintf(CFile,"h7image %s ={\n",image.name); 
 fprintf(CFile,"(void*) %s,%s,%s,\n",image.namea,image.namesx,image.namesy); 
-fprintf(CFile,"DMA2D_INPUT_ARGB1555,16, // Alpha modes \n"); 
+fprintf(CFile,"DMA2D_INPUT_ARGB1555,16,0,0, // Alpha modes \n"); 
 fprintf(CFile,"\"%s\\0\",\n",image.name);
-fprintf(CFile,"\"%s\\0\",\n",image.namea);
-fprintf(CFile,"\"%s\\0\",\n",image.namesx);
-fprintf(CFile,"\"%s\\0\",\n",image.namesy);
+//fprintf(CFile,"\"%s\\0\",\n",image.namea);
+//fprintf(CFile,"\"%s\\0\",\n",image.namesx);
+//fprintf(CFile,"\"%s\\0\",\n",image.namesy);
 fprintf(CFile,"};\n\n"); 
 
 fprintf(CFile,"const uint16_t %s[%s][%s] = {\n",image.namea,image.namesy,image.namesx); 
@@ -272,11 +287,11 @@ fprintf(CFile,"#define %s %i\n",image.namesy, image.height);
 fprintf(CFile,"#define %s %i\n\n",image.namesx, image.width); 
 fprintf(CFile,"h7image %s ={\n",image.name); 
 fprintf(CFile,"(void*) %s,%s,%s,\n",image.namea,image.namesx,image.namesy); 
-fprintf(CFile,"DMA2D_INPUT_ARGB4444,16, // Alpha modes \n"); 
+fprintf(CFile,"DMA2D_INPUT_ARGB4444,16,0,0, // Alpha modes \n"); 
 fprintf(CFile,"\"%s\\0\",\n",image.name);
-fprintf(CFile,"\"%s\\0\",\n",image.namea);
-fprintf(CFile,"\"%s\\0\",\n",image.namesx);
-fprintf(CFile,"\"%s\\0\",\n",image.namesy);
+//fprintf(CFile,"\"%s\\0\",\n",image.namea);
+//fprintf(CFile,"\"%s\\0\",\n",image.namesx);
+//fprintf(CFile,"\"%s\\0\",\n",image.namesy);
 fprintf(CFile,"};\n\n"); 
 
 fprintf(CFile,"const uint16_t %s[%s][%s] = {\n",image.namea,image.namesy,image.namesx); 
@@ -311,11 +326,11 @@ fprintf(CFile,"#define %s %i\n",image.namesy, image.height);
 fprintf(CFile,"#define %s %i\n\n",image.namesx, image.width); 
 fprintf(CFile,"h7image %s ={\n",image.name); 
 fprintf(CFile,"(void*) %s,%s,%s,\n",image.namea,image.namesx,image.namesy); 
-fprintf(CFile,"DMA2D_INPUT_ARGB8888,32, // Alpha modes \n"); 
+fprintf(CFile,"DMA2D_INPUT_ARGB8888,32,0,0, // Alpha modes \n"); 
 fprintf(CFile,"\"%s\\0\",\n",image.name);
-fprintf(CFile,"\"%s\\0\",\n",image.namea);
-fprintf(CFile,"\"%s\\0\",\n",image.namesx);
-fprintf(CFile,"\"%s\\0\",\n",image.namesy);
+//fprintf(CFile,"\"%s\\0\",\n",image.namea);
+//fprintf(CFile,"\"%s\\0\",\n",image.namesx);
+//fprintf(CFile,"\"%s\\0\",\n",image.namesy);
 fprintf(CFile,"};\n\n"); 
 
 fprintf(CFile,"const uint32_t %s[%s][%s] = {\n",image.namea,image.namesy,image.namesx); 
@@ -351,11 +366,11 @@ fprintf(CFile,"#define %s %i\n",image.namesy, image.height);
 fprintf(CFile,"#define %s %i\n\n",image.namesx, image.width); 
 fprintf(CFile,"h7image %s ={\n",image.name); 
 fprintf(CFile,"(void*) %s,%s,%s,\n",image.namea,image.namesx,image.namesy); 
-fprintf(CFile,"DMA2D_INPUT_RGB565,16, // Alpha modes \n"); 
+fprintf(CFile,"DMA2D_INPUT_RGB565,16,0,0, // Alpha modes and position \n"); 
 fprintf(CFile,"\"%s\\0\",\n",image.name);
-fprintf(CFile,"\"%s\\0\",\n",image.namea);
-fprintf(CFile,"\"%s\\0\",\n",image.namesx);
-fprintf(CFile,"\"%s\\0\",\n",image.namesy);
+//fprintf(CFile,"\"%s\\0\",\n",image.namea);
+//fprintf(CFile,"\"%s\\0\",\n",image.namesx);
+//fprintf(CFile,"\"%s\\0\",\n",image.namesy);
 fprintf(CFile,"};\n\n"); 
 fprintf(CFile,"const uint16_t %s[%s][%s] = {\n",image.namea,image.namesy,image.namesx); 
 
@@ -388,17 +403,23 @@ void printStructure(FILE *CFile)
   fprintf(CFile,"uint16_t width;    // width image\n");               
   fprintf(CFile,"uint16_t height;   // heigt image\n");             
   fprintf(CFile,"uint32_t colormode;// colormode DMA2D\n");           
-  fprintf(CFile,"uint8_t bbp;       // bits per pixel 8/16/32\n");                  
+  fprintf(CFile,"uint16_t xpos;     // x position\n");   
+  fprintf(CFile,"uint16_t ypos;     // y position\n");                  
   fprintf(CFile,"char name[24];     // name in text\n");
-  fprintf(CFile,"char namea[24];    // array name in text\n");   
-  fprintf(CFile,"char namesy[16];   // sizex in text\n");
+//  fprintf(CFile,"char namea[24];    // array name in text\n");   // for debug, you can re-use array for C-array conversion
+//  fprintf(CFile,"char namesx[16];   // sizex in text\n");       // for debug, you can re-use array for C-array conversion
+//  fprintf(CFile,"char namesy[16];   // sizey in text\n");       // for debug, you can re-use array for C-array conversion
   fprintf(CFile,"} h7image;         // sizey in text\n\n");
 }
 
+
+
+
 // Main loop, scan for all .PNG files on the card and put them in a list, then convert
 void ConvertAllPNG(uint32_t colormode) {
+  // extern h7image imageCONV // global defined  
   int t,i,rc, filecount = 0;
-  char c,BUF[128],fname[24],list[16][24],fullname[30],name[24];// sprintf buffer
+  char c,BUF[128],fname[24],list[16][24],fullname[30],objectname[24];// sprintf buffer
   const char *cpointer;
   DIR *d;
   struct dirent *p;
@@ -413,9 +434,9 @@ void ConvertAllPNG(uint32_t colormode) {
               sprintf(BUF,".PNG Image : %s\n", fname); Serial.print(BUF);
               sprintf(list[filecount],"%s",fname);   // save name incl direcory name = full path 
               filecount = filecount + 1;
-          } // PNG found
-      } // a file found 
-    } // Directory entry found
+          } // a PNG found
+      } // a valid file found 
+    } // a Directory-entry found
   } // Directory found
   closedir(d);
   if (filecount == 0) { Serial.println("No .PNG files found"); }
@@ -423,7 +444,7 @@ void ConvertAllPNG(uint32_t colormode) {
   {
       sprintf(BUF,"%d png-files found, converting.\n\n", filecount); Serial.print(BUF);
       char CFileName[30];
-        sprintf(CFileName,"ota/AllPNG.h");
+        sprintf(CFileName,"ota/All_PNG_%d.h",pngcounter++);
         FILE *CFile = fopen(CFileName, "w");
         fprintf(CFile,"// C-array PNG Converter by JV\n"); 
         fprintf(CFile,"// Required for STM32 ChromArt DMA2D support \n");
@@ -434,24 +455,35 @@ void ConvertAllPNG(uint32_t colormode) {
               sprintf(fullname,"ota/%s",list[i]);
               cpointer = (const char *) fullname; // make const char pointer to list
               sprintf(BUF,"  #%d file %s \n",i+1, fullname); Serial.print(BUF);
+              for(t=0;t<strlen(list[i])-4;t++) {objectname[t]=list[i][t];}objectname[t]=0;    // create item name without extension png
               rc = png.open((const char *) cpointer, myOpen, myClose, myRead, mySeek, PNGDraw);
               if (rc == PNG_SUCCESS) {
                   //sprintf(BUF,"  image specs: (%d x %d), %d bpp, pixel type: %d, alpha %d\n", png.getWidth(), png.getHeight(), png.getBpp(), png.getPixelType(),png.hasAlpha()); Serial.print(BUF);
                   png.setBuffer( (uint8_t *) RAWIMAGE); // receive decodedpng in sdram image buffer !!!! Red and blue are swopped ! ABGR8888, not ARGB8888
                   rc = png.decode(NULL, 0);
-
-                  imageC.imagearray = (uint32_t *) RAWIMAGE;                          // 32bit wide buffer ARGB8888
-                  for(t=0;t<strlen(list[i])-4;t++) {name[t]=list[i][t];}name[t]=0;    // create name without extension png
-                  sprintf(imageC.name,"%s",name);
-                  sprintf(imageC.namea,"%s_array",name);
-                  for(t=0;t<strlen(name);t++) {if (name[t]>0x60) name[t]-=0x20;} name[t]=0;   // make capitals
-                  sprintf(imageC.namesx,"%.5s_X",name);
-                  sprintf(imageC.namesy,"%.5s_Y",name);
+                  // create structure for conversion
+                  imageCONV.imagearray = (uint32_t *) RAWIMAGE;                          // 32bit wide buffer ARGB8888
+                  imageCONV.height=png.getHeight();
+                  imageCONV.width=png.getWidth();
+                  imageCONV.bbp = png.getBpp()*4;
+                  imageCONV.colormode=DMA2D_INPUT_ARGB8888;
+                  for(t=0;t<strlen(list[i])-4;t++) { // create item name without extension png en free from special characters
+                        c = list[i][t];
+                        if ( (c>0x2F) && (c!=0x5F) ) objectname[t]=c;
+                        }
+                        objectname[t]=0;    
+                  sprintf(imageCONV.namea,"%s_array",objectname);      // arrayname
+                  if (strlen(objectname) > 3 ) sprintf(imageCONV.name,"%s",objectname);
+                  else sprintf(imageCONV.name,"%s__",objectname);    // item name long enough
+                  for(t=0;t<strlen(objectname);t++) {if (objectname[t]>0x60) objectname[t]-=0x20;} objectname[t]=0;   // make name in capitals
+                  sprintf(imageCONV.namesx,"%.5s_X",objectname);       // define X name
+                  sprintf(imageCONV.namesy,"%.5s_Y",objectname);       // define y name
+                  // structure complete
                   switch (colormode){
-                      case DMA2D_INPUT_ARGB1555 : Convert1555(imageC, true, CFile) ; break;
-                      case DMA2D_INPUT_ARGB4444 : Convert4444(imageC, true, CFile) ; break;
-                      case DMA2D_INPUT_ARGB8888 : Convert8888(imageC, true, CFile) ; break;      
-                      case DMA2D_INPUT_RGB565   : Convert565(imageC, true, CFile) ; break;
+                      case DMA2D_INPUT_ARGB1555 : Convert1555(imageCONV, true, CFile) ; break;
+                      case DMA2D_INPUT_ARGB4444 : Convert4444(imageCONV, true, CFile) ; break;
+                      case DMA2D_INPUT_ARGB8888 : Convert8888(imageCONV, true, CFile) ; break;      
+                      case DMA2D_INPUT_RGB565   : Convert565(imageCONV, true, CFile) ; break;
                       default : break;
                       }
 
@@ -469,10 +501,11 @@ void ConvertAllPNG(uint32_t colormode) {
 
 void ConvertPNG(char * fname, uint32_t colormode)
 {
-char c,BUF[128],name[24],fullname[32]; // sprintf buffer
+// extern h7image imageCONV // global defined
+char c,BUF[128],objectname[24],fullname[32]; // sprintf buffer
 sprintf(fullname,"ota/%s",fname);      // create full path name 
 const char *cpointer = (const char *)fullname;
-int i,rc;
+int t,i,rc;
 Serial.println("");
         rc = png.open((const char *)cpointer, myOpen, myClose, myRead, mySeek, PNGDraw);
        if (rc == PNG_SUCCESS) {
@@ -480,18 +513,29 @@ Serial.println("");
           png.setBuffer( (uint8_t *) RAWIMAGE); // receive decodedpng in sdram image buffer !!!! Red and blue are swopped ! ABGR8888, not ARGB8888
           rc = png.decode(NULL, PNG_CHECK_CRC);
           sprintf(BUF,"  Error: %d , BuffSize %d\n", png.getLastError(), png.getBufferSize()); Serial.print(BUF);
-          imageC.imagearray = (uint32_t *) RAWIMAGE;              // 32bit wide buffer ARGB8888
-          for(i=0;i<strlen(fname)-4;i++) {name[i]=fname[i];}name[i]=0;   // create name without extension png
-          sprintf(imageC.name,"%s",name);
-          sprintf(imageC.namea,"%s_array",name);
-          for(i=0;i<strlen(name);i++) {if (name[i]>0x60) name[i]-=0x20;}name[i]=0;   // make capitals
-          sprintf(imageC.namesx,"%.5s_X",name);
-          sprintf(imageC.namesy,"%.5s_Y",name);
+                  // create structure for conversion
+                  imageCONV.imagearray = (uint32_t *) RAWIMAGE;                          // 32bit wide buffer ARGB8888
+                  imageCONV.height=png.getHeight();
+                  imageCONV.width=png.getWidth();
+                  imageCONV.bbp = png.getBpp()*4;
+                  imageCONV.colormode=DMA2D_INPUT_ARGB8888;
+                  for(t=0;t<strlen(fname)-4;t++) { // create item name without extension png en free from special characters
+                        c = fname[t];
+                        if ( (c>0x2F) && (c!=0x5F) ) objectname[t]=c;
+                        }
+                        objectname[t]=0;    
+                  sprintf(imageCONV.namea,"%s_array",objectname);      // arrayname
+                  if (strlen(objectname) > 5 ) sprintf(imageCONV.name,"%s",objectname);
+                  else sprintf(imageCONV.name,"%sfox",objectname);    // item name long enough
+                  for(t=0;t<strlen(objectname);t++) {if (objectname[t]>0x60) objectname[t]-=0x20;} objectname[t]=0;   // make name in capitals
+                  sprintf(imageCONV.namesx,"%.5s_X",objectname);       // define X name
+                  sprintf(imageCONV.namesy,"%.5s_Y",objectname);       // define y name
+                  // structure complete
           switch (colormode){
-              case DMA2D_INPUT_ARGB1555 : Convert(imageC, true, colormode) ; break;
-              case DMA2D_INPUT_ARGB4444 : Convert(imageC, true, colormode) ; break;
-              case DMA2D_INPUT_ARGB8888 : Convert(imageC, true, colormode) ; break;      
-              case DMA2D_INPUT_RGB565   : Convert(imageC, true, colormode) ; break;
+              case DMA2D_INPUT_ARGB1555 : Convert(imageCONV, true, colormode) ; break;
+              case DMA2D_INPUT_ARGB4444 : Convert(imageCONV, true, colormode) ; break;
+              case DMA2D_INPUT_ARGB8888 : Convert(imageCONV, true, colormode) ; break;      
+              case DMA2D_INPUT_RGB565   : Convert(imageCONV, true, colormode) ; break;
               default : break;
               }
           png.close();
