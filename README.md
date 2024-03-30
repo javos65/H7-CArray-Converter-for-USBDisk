@@ -1,25 +1,26 @@
-# C-array converter for image files an Fonts
-![logo](/images/explosion.png?raw=true)
+## C-array converter for images and fonts on Arduino USB-Drive
+![logo](/images/Iexplode.png?raw=true)
 ## A handy program tool for generating C-array for graphics - images and / or fonts
 ____
 
 ## About
 
 Annoyed by the limited online conversion possibilites, this tools makes it easier to generate your versions+
-It make use of the USB-Disk option to read and write files o nthe FatFilesystem.+
-+
-This code was made by using Portenta H7 (and HAT expansion board) supporting HDMI over USB-C+
-The STM32H7 has a fancy Chromart accelerator, using a special 2D DMA function (DMA2D) to transfer +
-Images to memory, including format and blending. Unfortunatly, its not easy to start with the right file formats.+
+It make use of the USB-Disk option to read and write files on the FatFilesystem.
+
+This code was made by using Portenta H7 (and HAT expansion board) supporting HDMI over USB-C
+The STM32H7 has a fancy Chromart accelerator, using a special 2D DMA function (DMA2D) to transfer 
+Images to memory, including format and blending. Unfortunatly, its not easy to start with the right file formats.
+
 Best online C-array programs are as folllows:
 
-[C-Array converter for images](https://notisrac.github.io/FileToCArray/)
-[C-Array converter for fonts](https://lvgl.io/tools/font_conv_v5_3)
+### [C-Array converter for images](https://notisrac.github.io/FileToCArray/)
+### [C-Array converter for fonts - lvgl](https://lvgl.io/tools/font_conv_v5_3)
 
-+
 Still some formats are hard to get like ARGB4444, ARGB1555 or the nibble-swopped A4 for fonts.
+This tool runs on the Portenta H7 in USB-drive mode. it reads your c-array from Code or your pgn files from disk, and creates a C-array file on the drive.
 
-![logo](/images/laser.png?raw=true)
+![logo](/images/Laser.png?raw=true)
 
 ### Wiring
 
@@ -39,7 +40,7 @@ ___
 ___
 
 ## To do:
-+ adding mote Font support
++ adding more Font support
 + adding BMP-format read support
 
 ___
