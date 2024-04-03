@@ -1,0 +1,106 @@
+
+/*****************************************************************************
+* | File      	:	Debugf.h
+* | Function    :	Debug with C-style printf functionality
+* | Info        : JV 2024
+*----------------
+* |	This version:   V1.0
+* | Date        :   2024-01-16
+* | Info        :   Basic version
+*
+******************************************************************************/
+
+#include "DEBUGF.h"
+
+#if DEBUGF_
+
+char _SERIALBUF[256]; // used 128 bytes Memory
+
+
+// Debug function : print buffer in hex and char format //
+void DEBUGBUFFER_8H(uint8_t* b,int size,int step)
+{
+int t,u;
+DEBUGF(" \n")
+for( t=0 ; t< size ; t=t+step)
+    {
+    DEBUGF("[%0.8x] ",(uint32_t) ((uint8_t*) b+t) );  
+    for(u=0;u<step;++u) {
+    DEBUGF("%0.2x_",b[t+u]);
+    }
+    DEBUGF("["); 
+    for(u=0;u<step;++u) { 
+      if(b[t+u]<32 || b[t+u]>128 ){DEBUGF("?_");}
+      else {DEBUGF("%c_",(char) b[t+u]);}
+    }
+    DEBUGF("]\n");
+    }
+DEBUGF(" \n")
+}
+
+// Debug function : print buffer in hex and char format //
+void DEBUGBUFFER_8B(uint8_t* b,int size, int step)
+{
+int t,u,v;
+DEBUGF(" \n")
+for( t=0 ; t< size ; t=t+step)
+    {
+    DEBUGF("[%0.8x] ",(uint32_t) ((uint8_t*) b+t) );  
+    for(u=0;u<step;++u) {
+      for(v=0;v<8;v++) {DEBUGF("%x",(b[t+u]>>(7-v))&0x01);}
+      DEBUGF("_");   
+    }
+    DEBUGF("["); 
+    for(u=0;u<step;++u) { 
+      if(b[t+u]<32 || b[t+u]>128 ){DEBUGF("?_");}
+      else {DEBUGF("%c_",(char) b[t+u]);}
+    }
+    DEBUGF("]\n");
+    }
+DEBUGF(" \n")
+}
+
+// Debug function : print buffer in hex and char format //
+void DEBUGBUFFER_32H(uint32_t* b,int size, int step)
+{
+int t,u;
+DEBUGF(" \n")
+for( t=0 ; t< size ; t=t+step)
+    {
+    DEBUGF("[%0.8x] ",(uint32_t) ((uint32_t*) b+t) );  // print address in 32 bit step size
+    for(u=0;u<step;++u) {
+    DEBUGF("%0.8x_",b[t+u]);
+    }
+    DEBUGF("["); 
+    for(u=0;u<step;++u) { 
+      //if(b[t+u]<32 || b[t+u]>128 ){DEBUGF("?_");}
+      //else {DEBUGF("%c_",(char) b[t+u]);}
+    }
+    DEBUGF("]\n");
+    }
+DEBUGF(" \n")
+}
+
+
+// Debug function : print buffer in hex and char format //
+void DEBUGBUFFER_16H(uint16_t* b,int size, int step)
+{
+int t,u;
+DEBUGF(" \n")
+for( t=0 ; t< size ; t=t+step)
+    {
+    DEBUGF("[%0.8x] ",(uint32_t) ((uint16_t*) b+t) );   // print adress in 16 bit step size
+    for(u=0;u<step;++u) {
+    DEBUGF("%0.4x_",b[t+u]);
+    }
+    DEBUGF("["); 
+    for(u=0;u<8;++u) { 
+      //if(b[t+u]<32 || b[t+u]>128 ){DEBUGF("?_");}
+      //else {DEBUGF("%c_",(char) b[t+u]);}
+    }
+    DEBUGF("]\n");
+    }
+DEBUGF(" \n")
+}
+
+#endif
