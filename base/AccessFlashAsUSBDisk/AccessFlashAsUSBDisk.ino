@@ -34,6 +34,15 @@ USBMSD MassStorage(&root);
 void setup() {
   Serial.begin(115200);
   MassStorage.begin();
+  char myFileName[] = "ota/info.txt"; 
+FILE *myFile = fopen(myFileName, "w");
+fprintf(myFile,"Test file, to see how cool this is \r\n");
+fprintf(myFile,"Function 1: Convert all png files on the USB drive\r\n");
+fprintf(myFile,"Function 2: A4 Font format converter : Swop nibbles in the byte-wise data [7:4] and [3:0]\r\n");
+fprintf(myFile,"Function 3: C-array converter : ie Reduces ARGB8888 (32 bit) to ARGB15555 (16 bit) - incl Alpha\r\n");
+fprintf(myFile,"Function 4: read PNG files and convert to C-array by filename\r\n\r\n");
+fprintf(myFile,"https://github.com/javos65/H7-CArray-Converter-for-USBDisk\r\n");
+fclose(myFile);
 }
 
 void printDirectory(char* name) {

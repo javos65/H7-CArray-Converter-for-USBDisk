@@ -31,10 +31,10 @@ https://github.com/javos65/H7-CArray-Converter-for-USBDisk
 #include "PNGdec.h"            // PNG decoder
 
 #include "lvgl_A4.h"            // font arrays and structures
-#include "screen.h"             // image array and structures
-#include "bmppng.h"             // bmp structure
-#include "pixelfunctions.h"       // Pixel conversion functions
-#include "arraycreators.h"       // C-array file functions
+#include "screen.h"             // image array and structures examples
+#include "bmppng.h"             // image definitions and structures ie h7image / BMPstructure
+#include "pixelfunctions.h"     // Pixel conversion functions
+#include "arraycreators.h"      // C-array file functions
 
 #include "DEBUGF.h"
 
@@ -44,9 +44,10 @@ REDIRECT_STDOUT_TO(Serial3)     // JV Console DEBUG for stdio info from Doom lib
 #define DRAMMAXY 320
 
 // FOR PNG DECODER
-PNG png;
+PNG png;           // png object
 uint8_t *RAWIMAGE; // pointer to big fat SDRAM buffer
 uint8_t pngcounter = 0;
+h7image imageCONV; // local image structure used for array conversions
 
 // FOR USB READABLE  DISK
 static QSPIFBlockDevice root;
@@ -70,7 +71,7 @@ USBMSD MassStorage(&root);
 
 
 
-// functions for PNG DECODER
+// FILE functions for PNG DECODER - Generic usable
 FILE *mypfile;
 void * myOpen(const char *filename, int32_t *size) {
   *size = 0;
@@ -210,7 +211,8 @@ void setup() {
   delay(3000);
   SDRAM.begin();
   RAWIMAGE= (uint8_t*)SDRAM.malloc(DRAMMAXX*DRAMMAXY*4);  // Allocate Sdram image buffer using 480*200 pixels max
-  DEBUGF(" * Starting");
+  Serial.print(" * Starting Conversion Program");
+  DEBUGF(" * +Debugf functions");
   MassStorage.begin();
     //DEBUGF("Content of WiFi partition:");
     //printDirectory("/wifi");
@@ -219,10 +221,10 @@ void setup() {
 char myFileName[] = "ota/info.txt"; 
 FILE *myFile = fopen(myFileName, "w");
 fprintf(myFile,"Test file, to see how cool this is \r\n");
-fprintf(myFile,"Function 1: Convert all png files on the USB drive\r\n");
+fprintf(myFile,"Function 1: Convert all png/bmp files on the USB drive\r\n");
 fprintf(myFile,"Function 2: A4 Font format converter : Swop nibbles in the byte-wise data [7:4] and [3:0]\r\n");
-fprintf(myFile,"Function 3: C-array converter : ie Reduces ARGB8888 (32 bit) to ARGB15555 (16 bit) - incl Alpha\r\n");
-fprintf(myFile,"Function 4: read PNG files and convert to C-array by filename\r\n\r\n");
+fprintf(myFile,"Function 3: C-array converter : ie Reduces ARGB8888 (32 bit) to ARGB15555 (16 bit) - incl Alpha mod\r\n");
+fprintf(myFile,"Function 4: Read single BMP / PNG files and convert to C-array by filename\r\n\r\n");
 fprintf(myFile,"https://github.com/javos65/H7-CArray-Converter-for-USBDisk\r\n");
 fclose(myFile);
   ota.unmount();delay(1000);
@@ -248,16 +250,17 @@ void printDirectory(char* name) {
 
 void loop() {
   Serial.flush();
-  DEBUGF("\nPress key to start new conversions...");
+  Serial.print("\nPress key to start new conversions...");
   while(!Serial.available() ) ;
   Serial.read();
 
-  ConvertPNG("test2_32b_alpha.png",COLORMODE_ARGB1555,NONTRANSPARANT,WHITE_8888);   
-  ConvertBMP("test2_32b.bmp",COLORMODE_ARGB1555);
-  ConvertBMP("test2_24b.bmp",COLORMODE_ARGB1555);
-  ConvertBMP("test2_16b565.bmp",COLORMODE_ARGB1555);
-  ConvertBMP("test2_16b1555.bmp",COLORMODE_ARGB1555);
-  ConvertBMP("test2_16b4444.bmp",COLORMODE_ARGB1555);
+  //ConvertAllBMP(COLORMODE_ARGB4444);
+  //ConvertPNG("test2_32b_alpha.png",COLORMODE_ARGB1555,NONTRANSPARANT,RED_8888);   
+  //ConvertBMP("test2_32b.bmp",COLORMODE_RGB565);
+  //ConvertBMP("test2_24b.bmp",COLORMODE_RGB565);
+  //ConvertBMP("test2_16b565.bmp",COLORMODE_ARGB4444);
+  //ConvertBMP("test2_16b1555.bmp",COLORMODE_RGB565);
+  //ConvertBMP("test2_16b4444.bmp",COLORMODE_ARGB8888);
   //readBMP("test2_32b.bmp");
   //readBMP("test2_32b8888.bmp");
   //readBMP("test2_24b.bmp");
@@ -266,16 +269,74 @@ void loop() {
   //readBMP("test2_16b1555.bmp");
   //readBMP("test2_16b4444.bmp");
   //readBMP("test2_16b565.bmp");
-  //ConvertAllPNG(COLORMODE_ARGB4444,TRANSPARANT,BLACK_8888);
+  ConvertAllPNG(COLORMODE_ARGB4444,TRANSPARANT,BLACK_8888);
   //ConvertAllPNG(COLORMODE_ARGB8888,TRANSPARANT,NOZALPHAREPLACE);
   //ConvertPNG("test2_32b_alpha.png",COLORMODE_ARGB8888,NONTRANSPARANT,BLACK_8888);     // convert single png file to 4444
   //CreateArray2Array(invader12,NOREDBLUESWAP,COLORMODE_ARGB4444,TRANSPARANT,NOZALPHAREPLACE);     // convert image array to 4444
   //CreateArray2Array(invader11,NOREDBLUESWAP,COLORMODE_ARGB1555,TRANSPARANT,NOZALPHAREPLACE);     // convert image array to 1555
   //ConvertA4_A4N(VantaFAT24p);                             // convert font array :  A4 nibble swop
-  DEBUGF("\nConversions done ..."); delay(1000);
+  Serial.print("\nConversions done ..."); delay(1000);
   Serial.flush();
 
 }
+
+
+
+
+
+//  scan for all .PNG files on the card and put them in a list, then convert
+void ConvertAllBMP(uint32_t colormode) {
+  // extern h7image imageCONV // global defined  
+  int t,i,rc, arraycount,filecount = 0;
+  char c,fname[24],list[16][24];
+  char CFileName[30];
+  char outputname[24];// sprintf buffer
+  BMPstruct localbmp;
+  DIR *d;
+  struct dirent *p;
+  d = opendir("/ota");
+  if (d != NULL) {
+     DEBUGF("\n\n  Found /ota directory, reading files\n"); 
+    while ((p = readdir(d)) != NULL) {
+      if (p->d_type == DT_REG) {          // regular file
+          sprintf(fname,"%s",p->d_name);
+          const int len = strlen(fname);
+          if ( (len > 3 && strcmp(fname + len - 3, "bmp") == 0) ) {
+              DEBUGF(".BMP Image : %s\n", fname); 
+              sprintf(list[filecount],"%s",fname);   // save name incl direcory name = full path 
+              filecount = filecount + 1;
+          } // a BMP found
+      } // a valid file found 
+    } // a Directory-entry found
+  } // Directory found
+  closedir(d);
+  if (filecount == 0) { DEBUGF("No .BMP files found");; }
+  else
+  {
+      DEBUGF("  %d bmp-files found, start array conversion.\n\n", filecount); 
+      sprintf(CFileName,"ota/All_BMP_%d.h",pngcounter++);       //create output file
+      FILE *CFile = fopen(CFileName, "w");
+        fprintf(CFile,"// C-array PBMP Converter by JV\n"); 
+        fprintf(CFile,"// Required for STM32 ChromArt DMA2D support \n");
+        printStructure(CFile);
+        arraycount=0;
+        for( i=0;i<filecount;++i) {
+            DEBUGF("\n  #%d file %s, ",i+1, list[i]);
+            BMPstruct localbmp;
+            localbmp = readBMP(list[i]);
+            if (localbmp.imagebuffer == NULL) { DEBUGF("\n\n  !%s not a valid BMP for conversion\n",fname);;}
+            else {
+                if (writeBMParray(list[i], &localbmp, colormode , CFile) ==1 ) { DEBUGF("  Added Conversion array to file: %s\n",CFileName); ++arraycount;}
+                }
+        }
+    fclose(CFile);
+    ota.unmount();delay(1000);  ota.unmount();delay(1000);
+    ota.mount(&ota_data);  
+    DEBUGF("\n  Created %d BMP Conversion arrays to file: %s",arraycount,CFileName);      
+  }
+}
+
+
 
 
 // convert single file to array
@@ -327,21 +388,21 @@ int t,i,rc,succes=0;
                   if (strlen(objectname) > 3 ) sprintf(imageCONV.name,"%s",objectname);
                   else sprintf(imageCONV.name,"%s__",objectname);      // item name long enough
                   for(t=0;t<strlen(objectname);t++) {if (objectname[t]>0x60) objectname[t]-=0x20;} objectname[t]=0;   // make name in capitals
-                  sprintf(imageCONV.namesx,"%.5s_X",objectname);       // define X name
-                  sprintf(imageCONV.namesy,"%.5s_Y",objectname);       // define y name
+                  sprintf(imageCONV.namesx,"%.7s_X",objectname);       // define X name
+                  sprintf(imageCONV.namesy,"%.7s_Y",objectname);       // define y name
                   // structure complete
-                  if (mybmp->bpp == 32) switch (colormode){ // 32 bits is always buffer color mode xxxx8888 and  Alpha=0xFF Zero ALPHAREPLACE not possible
-                      case COLORMODE_ARGB1555 : Create1555array32(imageCONV,OPAQUE, NOZALPHAREPLACE, CFile) ; break; // convert BMP from ARGB8888 - no alpha
-                      case COLORMODE_ARGB4444 : Create4444array32(imageCONV,OPAQUE, NOZALPHAREPLACE, CFile) ; break; // convert BMP from ARGB8888 - no alpha
-                      case COLORMODE_ARGB8888 : Create8888array32(imageCONV,OPAQUE, NOZALPHAREPLACE, CFile) ; break; // convert BMP from ARGB8888 - no alpha
-                      case COLORMODE_RGB565   : Create565array32( imageCONV,NOZALPHAREPLACE, CFile) ; break;  // convert with no alpha : BMP delivers non alpha format
+                  if (mybmp->bpp == 32) switch (colormode){ // BMP 32 bits is always buffer color mode xxxx8888 and  Alpha=0xFF Zero ALPHAREPLACE not possible
+                      case COLORMODE_ARGB1555 : Create1555array32(imageCONV,OPAQUE, NOZALPHAREPLACE, CFile) ; break; // convert BMP from ARGB8888 to 1555 - no alpha
+                      case COLORMODE_ARGB4444 : Create4444array32(imageCONV,OPAQUE, NOZALPHAREPLACE, CFile) ; break; // convert BMP from ARGB8888 to 4444- no alpha
+                      case COLORMODE_ARGB8888 : Create8888array32(imageCONV,OPAQUE, NOZALPHAREPLACE, CFile) ; break; // convert BMP from ARGB8888 to 8888 - no alpha
+                      case COLORMODE_RGB565   : Create565array32( imageCONV,OPAQUE, NOZALPHAREPLACE, CFile) ; break;  // convert with no alpha : BMP to 565
                       default : break;
                       }
-                  if (mybmp->bpp == 16) switch (colormode){
-                      case COLORMODE_ARGB1555 : Create1555array16(imageCONV,OPAQUE, NOZALPHAREPLACE, CFile) ; break; // convert BMP from ARGB8888 - no alpha
-                      //case COLORMODE_ARGB4444 : Create4444array32(imageCONV,OPAQUE, NOZALPHAREPLACE, CFile) ; break; // convert BMP from ARGB8888 - no alpha
-                      //case COLORMODE_ARGB8888 : Create8888array32(imageCONV,OPAQUE, NOZALPHAREPLACE, CFile) ; break; // convert BMP from ARGB8888 - no alpha
-                      //case COLORMODE_RGB565   : Create565array32( imageCONV,OPAQUE, CFile) ; break;  // convert with no alpha : BMP delivers non alpha format
+                  if (mybmp->bpp == 16) switch (colormode){ // BMP 16 bits has 3 codings, and  alpha is always 100%
+                      case COLORMODE_ARGB1555 : Create1555array16(imageCONV,OPAQUE, NOZALPHAREPLACE, CFile) ; break; // convert BMP from 16 bits to 1555 no alpha
+                      case COLORMODE_ARGB4444 : Create4444array16(imageCONV,OPAQUE, NOZALPHAREPLACE, CFile) ; break; // convert BMP from 16 bits to 4444- no alpha
+                      case COLORMODE_ARGB8888 : Create8888array16(imageCONV,OPAQUE, NOZALPHAREPLACE, CFile) ; break; // convert BMP from 16 bits to 8888- no alpha
+                      case COLORMODE_RGB565   : Create565array16( imageCONV,OPAQUE, BLACK_8888, CFile) ; break;  // convert with no alpha : BMP from 16 bit to 565 - background mixed to black
                       default : break;
                       }                      
                   succes=1;    
@@ -453,7 +514,7 @@ if (fsize > 0)
                 }
             bmp.redmask = 0x00ff0000;bmp.greenmask = 0x0000ff00;bmp.bluemask = 0x000000ff;bmp.alphamask = 0xff000000; // overide mask : no alpha mask                
             bmp.bpp=32; // mapped to 32 bits  
-            bmp.buffercolor = COLORMODE_ARGB8888;    
+            bmp.buffercolor = COLORMODE_XRGB8888;    //COLORMODE_ARGB8888;
             bmp.imagebuffer= (uint8_t*) RAWIMAGE;   
       DEBUGBUFFER_32H( (uint32_t *) RAWIMAGE,32,8); // Show first 32 bytes as test result - should be ARGB1555 style data at compression = 0 
             }
@@ -519,7 +580,7 @@ void ConvertAllPNG(uint32_t colormode,bool transparant,uint32_t alphareplace) {
     fclose(CFile);
     ota.unmount();delay(1000);  ota.unmount();delay(1000);
     ota.mount(&ota_data);  
-    DEBUGF("\n  Created %d Conversion arrays to file: %s",arraycount,CFileName);      
+    DEBUGF("\n  Created %d PNG Conversion arrays to file: %s",arraycount,CFileName);      
   }
 }
 
@@ -538,9 +599,10 @@ int t,i,rc,succes=0;
               rc = png.open((const char *) cpointer, myOpen, myClose, myRead, mySeek, PNGDraw);
               if (rc == PNG_SUCCESS) {
                 DEBUGF("  ArrayConverting %s [%d x %d], %dbpp, pixeltype=%d, alpha=%d\n", objectname, png.getWidth(), png.getHeight(), png.getBpp(), png.getPixelType(),png.hasAlpha()); 
-                if (png.getPixelType()!=6 || png.hasAlpha()!=1 ) {fprintf(CFile," // PNG %s : no TrueColor with Alpha: %d-%d" , cpointer, png.getPixelType(),png.hasAlpha() );DEBUGF("  ! PNG type is not Truecolor with Alpha");}
+                if (png.getPixelType()!=6 || png.hasAlpha()!=1) {fprintf(CFile," // PNG %s : no TrueColor with Alpha: %d-%d" , cpointer, png.getPixelType(),png.hasAlpha() );DEBUGF("  ! PNG type is not Truecolor with Alpha");} 
                 else if (png.getWidth()>DRAMMAXX || png.getHeight()>DRAMMAXY ) {fprintf(CFile," // PNG file exceeds max size %dx%d" , DRAMMAXX,DRAMMAXY);DEBUGF("  ! PNG X*Y is too large");}
-                else {
+                else 
+                  {
                   png.setBuffer( (uint8_t *) RAWIMAGE); // receive decodedpng in sdram image buffer !!!! Red and blue are swopped ! ABGR8888, not ARGB8888
                   rc = png.decode(NULL, 0);
                   if (rc!=0) {fprintf(CFile," // PNG Conversion failure %d converting %s" , rc,cpointer);DEBUGF("  !PNG conversion failure");}
@@ -556,14 +618,14 @@ int t,i,rc,succes=0;
                   if (strlen(objectname) > 3 ) sprintf(imageCONV.name,"%s",objectname);
                   else sprintf(imageCONV.name,"%s__",objectname);      // item name long enough
                   for(t=0;t<strlen(objectname);t++) {if (objectname[t]>0x60) objectname[t]-=0x20;} objectname[t]=0;   // make name in capitals
-                  sprintf(imageCONV.namesx,"%.5s_X",objectname);       // define X name
-                  sprintf(imageCONV.namesy,"%.5s_Y",objectname);       // define y name
+                  sprintf(imageCONV.namesx,"%.7s_X",objectname);       // define X name
+                  sprintf(imageCONV.namesy,"%.7s_Y",objectname);       // define y name
                   // structure complete
                   switch (colormode){
                       case COLORMODE_ARGB1555 : Create1555array32(imageCONV, transparant, alphareplace, CFile) ; break; // convert with red blue swop : png delivers ABGR8888 format
                       case COLORMODE_ARGB4444 : Create4444array32(imageCONV, transparant, alphareplace, CFile) ; break; // convert with red blue swop : png delivers ABGR8888 format
                       case COLORMODE_ARGB8888 : Create8888array32(imageCONV, transparant, alphareplace, CFile) ; break; // convert with red blue swop : png delivers ABGR8888 format
-                      case COLORMODE_RGB565   : Create565array32( imageCONV, alphareplace, CFile) ; break;  // convert with red blue swop : png delivers ABGR8888 format
+                      case COLORMODE_RGB565   : Create565array32( imageCONV, transparant, alphareplace, CFile) ; break;  // convert with red blue swop : png delivers ABGR8888 format
                       default : break;
                       }
                   succes=1;    

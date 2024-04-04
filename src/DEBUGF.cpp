@@ -16,22 +16,19 @@
 
 char _SERIALBUF[256]; // used 128 bytes Memory
 
-
 // Debug function : print buffer in hex and char format //
-void DEBUGBUFFER_8H(uint8_t* b,int size,int step)
+void Debugbuffer_8H(uint8_t* b,int size,int step)
 {
 int t,u;
 DEBUGF(" \n")
 for( t=0 ; t< size ; t=t+step)
     {
     DEBUGF("[%0.8x] ",(uint32_t) ((uint8_t*) b+t) );  
-    for(u=0;u<step;++u) {
-    DEBUGF("%0.2x_",b[t+u]);
-    }
+    for(u=0;u<step;++u) { DEBUGF("%0.2x_",b[t+u]); }
     DEBUGF("["); 
     for(u=0;u<step;++u) { 
-      if(b[t+u]<32 || b[t+u]>128 ){DEBUGF("?_");}
-      else {DEBUGF("%c_",(char) b[t+u]);}
+      if(b[t+u]<32 || b[t+u]>128 ){DEBUGF(".");}
+      else {DEBUGF("%c",(char) b[t+u]);}
     }
     DEBUGF("]\n");
     }
@@ -39,7 +36,7 @@ DEBUGF(" \n")
 }
 
 // Debug function : print buffer in hex and char format //
-void DEBUGBUFFER_8B(uint8_t* b,int size, int step)
+void Debugbuffer_8B(uint8_t* b,int size, int step)
 {
 int t,u,v;
 DEBUGF(" \n")
@@ -52,18 +49,19 @@ for( t=0 ; t< size ; t=t+step)
     }
     DEBUGF("["); 
     for(u=0;u<step;++u) { 
-      if(b[t+u]<32 || b[t+u]>128 ){DEBUGF("?_");}
-      else {DEBUGF("%c_",(char) b[t+u]);}
+      if(b[t+u]<32 || b[t+u]>128 ){DEBUGF(".");}
+      else {DEBUGF("%c",(char) b[t+u]);}
     }
     DEBUGF("]\n");
     }
 DEBUGF(" \n")
 }
 
-// Debug function : print buffer in hex and char format //
-void DEBUGBUFFER_32H(uint32_t* b,int size, int step)
+// Debug function : print buffer in hex and char format, beware: 32bit numbers are shown Litte Endian style - byte wise reversed vs address//
+void Debugbuffer_32H(uint32_t* b,int size, int step)
 {
-int t,u;
+int t,u,v;
+char c;
 DEBUGF(" \n")
 for( t=0 ; t< size ; t=t+step)
     {
@@ -73,8 +71,12 @@ for( t=0 ; t< size ; t=t+step)
     }
     DEBUGF("["); 
     for(u=0;u<step;++u) { 
-      //if(b[t+u]<32 || b[t+u]>128 ){DEBUGF("?_");}
-      //else {DEBUGF("%c_",(char) b[t+u]);}
+        for(v=0;v<4;++v){
+            c= (char) ((b[t+u]>>((3-v)*8))&0x000000ff);
+            if( c<32 || c>128 ){DEBUGF(".");}
+            else {DEBUGF("%c",c);}
+            }
+        DEBUGF("_");    
     }
     DEBUGF("]\n");
     }
@@ -82,10 +84,11 @@ DEBUGF(" \n")
 }
 
 
-// Debug function : print buffer in hex and char format //
-void DEBUGBUFFER_16H(uint16_t* b,int size, int step)
+// Debug function : print buffer in hex and char format beware: 16bit numbers are shown Litte Endian - byte wise reversed vs address//
+void Debugbuffer_16H(uint16_t* b,int size, int step)
 {
-int t,u;
+int t,u,v;
+char c;
 DEBUGF(" \n")
 for( t=0 ; t< size ; t=t+step)
     {
@@ -94,9 +97,13 @@ for( t=0 ; t< size ; t=t+step)
     DEBUGF("%0.4x_",b[t+u]);
     }
     DEBUGF("["); 
-    for(u=0;u<8;++u) { 
-      //if(b[t+u]<32 || b[t+u]>128 ){DEBUGF("?_");}
-      //else {DEBUGF("%c_",(char) b[t+u]);}
+    for(u=0;u<step;++u) { 
+        for(v=0;v<2;++v){
+            c= (char) ((b[t+u]>>((1-v)*8))&0x00ff);
+            if( c<32 || c>128 ){DEBUGF(".");}
+            else {DEBUGF("%c",c);}
+            }
+        DEBUGF("_");    
     }
     DEBUGF("]\n");
     }
