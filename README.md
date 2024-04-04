@@ -46,7 +46,7 @@ ___
 
 ## To do:
 + adding more Font support
-+ adding BMP-format read support
++ adding BMP-format read support - done
 
 ___
 
