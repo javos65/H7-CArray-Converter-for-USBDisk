@@ -27,7 +27,7 @@ for( t=0 ; t< size ; t=t+step)
     for(u=0;u<step;++u) { DEBUGF("%0.2x_",b[t+u]); }
     DEBUGF("["); 
     for(u=0;u<step;++u) { 
-      if(b[t+u]<32 || b[t+u]>128 ){DEBUGF(".");}
+      if(b[t+u]<32 || b[t+u]>127 ){DEBUGF(".");}
       else {DEBUGF("%c",(char) b[t+u]);}
     }
     DEBUGF("]\n");
@@ -49,7 +49,7 @@ for( t=0 ; t< size ; t=t+step)
     }
     DEBUGF("["); 
     for(u=0;u<step;++u) { 
-      if(b[t+u]<32 || b[t+u]>128 ){DEBUGF(".");}
+      if(b[t+u]<32 || b[t+u]>127 ){DEBUGF(".");}
       else {DEBUGF("%c",(char) b[t+u]);}
     }
     DEBUGF("]\n");
@@ -72,8 +72,8 @@ for( t=0 ; t< size ; t=t+step)
     DEBUGF("["); 
     for(u=0;u<step;++u) { 
         for(v=0;v<4;++v){
-            c= (char) ((b[t+u]>>((3-v)*8))&0x000000ff);
-            if( c<32 || c>128 ){DEBUGF(".");}
+            c= (char) ((b[t+u]>>((v)*8))&0x000000ff);
+            if( c<32 || c>127 ){DEBUGF(".");}
             else {DEBUGF("%c",c);}
             }
         DEBUGF("_");    
@@ -99,8 +99,8 @@ for( t=0 ; t< size ; t=t+step)
     DEBUGF("["); 
     for(u=0;u<step;++u) { 
         for(v=0;v<2;++v){
-            c= (char) ((b[t+u]>>((1-v)*8))&0x00ff);
-            if( c<32 || c>128 ){DEBUGF(".");}
+            c= (char) ((b[t+u]>>((v)*8))&0x00ff);
+            if( c<32 || c>127 ){DEBUGF(".");}
             else {DEBUGF("%c",c);}
             }
         DEBUGF("_");    

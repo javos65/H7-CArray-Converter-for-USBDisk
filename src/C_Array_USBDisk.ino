@@ -10,10 +10,10 @@ Used to create a C-Array format converter:
 Use your C-array in .h include file, convert and write to USB MAss Storage to read it back on your system for re-use
 OR .. drop your png files on the usb drive and reset the board :)
 
-Function 1: Convert all png files on the USB drive
+Function 1: Convert all PNG/BMP files on the USB drive
 Function 2: A4 Font format converter : Swop nibbles in the byte-wise data [7:4] and [3:0]
 Function 3: C-array converter : Reduces ARGB8888 (32 bit) to ARGB15555 (16 bit) - 1 Alpha bit for transparancy blending or other formats
-Function 4: read PNG files and convert to C-array by filename
+Function 4: read PNG or BMP files and convert to C-array by filename
 
 Functions required for proper use of the STM32 ChromArt DMA2D functions, and online converters dont support these formats very well
 Use the Portenta H7 USB Massstorage example to setup your drive properly using partition for Wifi and ota (standard setup)
@@ -254,7 +254,8 @@ void loop() {
   while(!Serial.available() ) ;
   Serial.read();
 
-  //ConvertAllBMP(COLORMODE_ARGB4444);
+  ConvertAllBMP(COLORMODE_RGB565);
+  ConvertAllPNG(COLORMODE_ARGB4444,TRANSPARANT,NOZALPHAREPLACE);
   //ConvertPNG("test2_32b_alpha.png",COLORMODE_ARGB1555,NONTRANSPARANT,RED_8888);   
   //ConvertBMP("test2_32b.bmp",COLORMODE_RGB565);
   //ConvertBMP("test2_24b.bmp",COLORMODE_RGB565);
@@ -269,7 +270,7 @@ void loop() {
   //readBMP("test2_16b1555.bmp");
   //readBMP("test2_16b4444.bmp");
   //readBMP("test2_16b565.bmp");
-  ConvertAllPNG(COLORMODE_ARGB4444,TRANSPARANT,BLACK_8888);
+  //ConvertAllPNG(COLORMODE_ARGB4444,TRANSPARANT,BLACK_8888);
   //ConvertAllPNG(COLORMODE_ARGB8888,TRANSPARANT,NOZALPHAREPLACE);
   //ConvertPNG("test2_32b_alpha.png",COLORMODE_ARGB8888,NONTRANSPARANT,BLACK_8888);     // convert single png file to 4444
   //CreateArray2Array(invader12,NOREDBLUESWAP,COLORMODE_ARGB4444,TRANSPARANT,NOZALPHAREPLACE);     // convert image array to 4444
@@ -417,7 +418,7 @@ return succes;
 BMPstruct readBMP(char * fname)
 {
 // extern h7image imageCONV // global defined
-char c,BUF[128],objectname[24],fullname[32]; // sprintf buffer
+char c[4],BUF[128],objectname[24],fullname[32]; // sprintf buffer
 sprintf(fullname,"ota/%s",fname);      // create full path name 
 const char *cpointer = (const char *)fullname;
 int t,i;
@@ -452,6 +453,7 @@ if (fsize > 0)
             uint32_t readbytes = 4 ;                      // reading 4 bytes per read - myRead32
             uint32_t linebytes = (bmp.width*bmp.bpp/8);   // bytes per line, read per line = linebytes/ readbytes
             uint32_t paddingbytes=0 ;                     // 32 bits pp always ends on 4 bytes
+            DEBUGF("16B : readbytes %d, Linebytes %d padding %d",readbytes,linebytes,paddingbytes);
             for (i=bmp.height-1; i>=0;i--){
                     myRead32_FF(NULL, (uint8_t *) RAWIMAGE+i*linebytes, linebytes/readbytes); // pass 8-bit pointer, read filesize by 32 bits  , force alpha to 0xff
                 }
@@ -473,44 +475,47 @@ if (fsize > 0)
     DEBUGBUFFER_32H( (uint32_t *) RAWIMAGE,32,8); // Show first 32 bytes as test result - should be ARGB888 with zero Alpha with compression = 0
             }            
         if(bmp.bpp == 16 && bmp.compression == 0) {        // standard read results in ARGB1555, with X=alpha alway 0 <------------------------- !!!!
-            uint32_t readbytes = 1 ;                      // reading 1 bytes per read - myRead
+            uint32_t readbytes = 2 ;                      // reading 1 bytes per read - myRead
             uint32_t linebytes = (bmp.width*bmp.bpp/8);   // bytes per line, read per line = linebytes/ readbytes
             uint32_t paddingbytes=0 ;                     // 32 bits pp always ends on 4 bytes
-            if(linebytes%4 != 0   ); paddingbytes = 2;    // always equal 4  or 2
+            if(linebytes%4 != 0   ) paddingbytes = 4-linebytes%4;     // always equal 4  or 2
+            //DEBUGF("16B : readbytes %d, Linebytes %d padding %d",readbytes,linebytes,paddingbytes);
             for (i=bmp.height-1; i>=0;i--){
-                    myRead(NULL, (uint8_t *) RAWIMAGE+i*linebytes, linebytes/readbytes); // pass 8-bit pointer, read filesize by 16 bits  / 2 bytes Big Endian converted one full line
-                    if (paddingbytes !=0) myRead(NULL,(uint8_t*) &c,paddingbytes); // read x single bytes
+                    myRead16(NULL, (uint8_t *) RAWIMAGE+i*linebytes, linebytes/readbytes); // pass 8-bit pointer, read filesize by 16 bits  / 2 bytes Big Endian converted one full line
+                    if (paddingbytes !=0) myRead(NULL,(uint8_t*) c,paddingbytes); // read x single bytes
                 }
              bmp.redmask = 0x00007c00;bmp.greenmask = 0x000003e0;bmp.bluemask = 0x0000001f;bmp.alphamask = 0x00000080; // alpha mask : alpha ignore  
              bmp.buffercolor = COLORMODE_XRGB1555;                           
              bmp.imagebuffer= (uint8_t*) RAWIMAGE;      
-      DEBUGBUFFER_16H( (uint16_t *) RAWIMAGE,32,8); // Show first 32 bytes as test result - should be ARGB1555 style data at compression = 0 
+      DEBUGBUFFER_16H( (uint16_t *) RAWIMAGE,128,16); // Show first 32 bytes as test result - should be ARGB1555 style data at compression = 0 
              //DEBUGBUFFER_B( (uint8_t *) RAWIMAGE,160); // Show first 32 bytes as test result - should be RGB565 style data
             }
         if(bmp.bpp == 16 && bmp.compression == 3) {       // standard read results in ARGB4444, with X=alpha alway 0  OR !!! RGB565 colors,  -> use generated bit-mask
-            uint32_t readbytes = 1 ;                      // reading 1 bytes per read - myRead
+            uint32_t readbytes = 2 ;                      // reading 1 bytes per read - myRead
             uint32_t linebytes = (bmp.width*bmp.bpp/8);   // bytes per line, read per line = linebytes/ readbytes
             uint32_t paddingbytes=0 ;                     // 32 bits pp always ends on 4 bytes
-            if(linebytes%4 != 0   ); paddingbytes = 2;    // always equal 4  or 2
+            if(linebytes%4 != 0   ) paddingbytes = 4-linebytes%4;    // always equal 4  or 2
+            //DEBUGF("16B : readbytes %d, Linebytes %d padding %d",readbytes,linebytes,paddingbytes);
             for (i=bmp.height-1; i>=0;i--){
-                    myRead(NULL, (uint8_t *) RAWIMAGE+i*linebytes, linebytes/readbytes); // pass 8-bit pointer, read filesize by 16 bits  / 2 bytes Big Endian converted one full line
-                    if (paddingbytes !=0) myRead(NULL,(uint8_t*) &c,paddingbytes); // read x single bytes
+                    myRead16(NULL, (uint8_t *) RAWIMAGE+i*linebytes, linebytes/readbytes); // pass 8-bit pointer, read filesize by 16 bits  / 2 bytes Big Endian converted one full line
+                    if (paddingbytes !=0) myRead(NULL,(uint8_t*) c,paddingbytes); // read x single bytes
                 }
              //
              if (bmp.redmask==0xf00 && bmp.greenmask==0xf0 && bmp.bluemask==0x0f ) bmp.buffercolor = COLORMODE_XRGB4444;  // used read color masks to determine the colormode
              else bmp.buffercolor = COLORMODE_RGB565;
              bmp.imagebuffer= (uint8_t*) RAWIMAGE;      
-    DEBUGBUFFER_16H( (uint16_t *) RAWIMAGE,32,8); // Show first 32 bytes as test result - should be ARGB1555 style data at compression = 0 
+    DEBUGBUFFER_16H( (uint16_t *) RAWIMAGE,128,16); // Show first 32 bytes as test result - should be ARGB1555 style data at compression = 0 
             }            
         if(bmp.bpp == 24 && bmp.compression == 0) {       // 24 to 32 bit mapping, resulting in XRGB8888 -> forced Alpha to FF
             uint32_t readbytes = 3 ;                      // reading 3 bytes per read - myRead24_32FF -> map to 32 bit
             uint32_t linebytes = (bmp.width*bmp.bpp/8);   // bytes per line, read per line = linebytes/ readbytes
             uint32_t linebytes2 = (bmp.width*32/8);       // write per 32 bits !
             uint32_t paddingbytes=0 ;                     // 32 bits pp always ends on 4 bytes
-            if(linebytes%4 != 0   ); paddingbytes = 4-linebytes%4;    // padding bytes
+            if(linebytes%4 != 0   ) paddingbytes = 4-linebytes%4;    // padding bytes
+            //DEBUGF("16B : readbytes %d, Linebytes %d padding %d",readbytes,linebytes,paddingbytes);
             for (i=bmp.height-1; i>=0;i--){
                     myRead24_32FF(NULL, (uint8_t *) RAWIMAGE+i*(linebytes2), linebytes/readbytes); // pass 8-bit pointer, read filesize by 16 bits  / 2 bytes Big Endian converted one full line / Alpha forced to 0xFF / opaque
-                    if (paddingbytes !=0) myRead(NULL,(uint8_t*) &c,paddingbytes); // read x single bytes
+                    if (paddingbytes !=0) myRead(NULL,(uint8_t*) c,paddingbytes); // read x single bytes
                 }
             bmp.redmask = 0x00ff0000;bmp.greenmask = 0x0000ff00;bmp.bluemask = 0x000000ff;bmp.alphamask = 0xff000000; // overide mask : no alpha mask                
             bmp.bpp=32; // mapped to 32 bits  
@@ -605,7 +610,7 @@ int t,i,rc,succes=0;
                   {
                   png.setBuffer( (uint8_t *) RAWIMAGE); // receive decodedpng in sdram image buffer !!!! Red and blue are swopped ! ABGR8888, not ARGB8888
                   rc = png.decode(NULL, 0);
-                  if (rc!=0) {fprintf(CFile," // PNG Conversion failure %d converting %s" , rc,cpointer);DEBUGF("  !PNG conversion failure");}
+                  if (rc!=0) {fprintf(CFile," // PNG Conversion failure %d converting %s" , rc,cpointer);DEBUGF("  !PNG conversion failure, error : %d",rc);}
                   else {
           DEBUGBUFFER_32H( (uint32_t *) RAWIMAGE,32,8); // Show first 32 bytes as test result - 
                   // create structure for conversion
